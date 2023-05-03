@@ -42,9 +42,15 @@ public class GoogleMapsPlacesService {
         saveResults(placesSearchResponse.results);
         String nextPageToken = placesSearchResponse.nextPageToken;
         while (getNextPageRequest(nextPageToken) != null) {
-            PlacesSearchResponse nextPageSearchResponse = getNextPageRequest(nextPageToken).await();
-            saveResults(nextPageSearchResponse.results);
-            nextPageToken = nextPageSearchResponse.nextPageToken;
+            NearbySearchRequest nextPageSearchRequest = getNextPageRequest(nextPageToken);
+            try {
+                PlacesSearchResponse nextPageSearchResponse = nextPageSearchRequest.await();
+                saveResults(nextPageSearchResponse.results);
+                nextPageToken = nextPageSearchResponse.nextPageToken;
+            } catch (Exception e) {
+                System.out.println(nextPageSearchRequest);
+            }
+
         }
     }
 
