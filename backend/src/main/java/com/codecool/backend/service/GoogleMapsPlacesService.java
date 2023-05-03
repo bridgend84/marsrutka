@@ -24,18 +24,35 @@ public class GoogleMapsPlacesService {
     private final PlaceRepository placeRepository;
     private final PlaceTypeRepository placeTypeRepository;
 
-    public GoogleMapsPlacesService(GeoApiContext context, PlaceRepository placeRepository, PlaceTypeRepository placeTypeRepository) {
+    public GoogleMapsPlacesService(GeoApiContext context,
+                                   PlaceRepository placeRepository,
+                                   PlaceTypeRepository placeTypeRepository) {
         this.context = context;
         this.placeRepository = placeRepository;
         this.placeTypeRepository = placeTypeRepository;
     }
 
-    public void getNearbyPlaces(double latitude, double longitude, int radius) throws IOException, InterruptedException, ApiException {
+    public void getNearbyPlaces(double latitude,
+                                double longitude,
+                                int radius) throws IOException, InterruptedException, ApiException {
         PlacesSearchResponse placesSearchResponse = new NearbySearchRequest(context)
                 .location(new LatLng(latitude, longitude))
                 .radius(radius)
                 .await();
-        PlacesSearchResult[] results = placesSearchResponse.results;
+        saveResults(placesSearchResponse.results);
+        PlacesSearchResponse nextPageSearchResponse = getNextPageRequest(placesSearchResponse.nextPageToken);
+        while (nextPageSearchResponse.nextPageToken != null) {
+            saveResults(nextPageSearchResponse.results);
+            nextPageSearchResponse = getNextPageRequest(nextPageSearchResponse.nextPageToken);
+        }
+    }
+
+    // TODO InvalidRequestException without debugging
+    public PlacesSearchResponse getNextPageRequest(String token) throws IOException, InterruptedException, ApiException {
+        return token == null ? null : new NearbySearchRequest(context).pageToken(token).await();
+    }
+
+    private void saveResults(PlacesSearchResult[] results) {
         Set<Place> places = Arrays.stream(results)
                 .map(placesSearchResult -> Place.builder()
                         .formattedAddress(placesSearchResult.formattedAddress)
@@ -50,7 +67,10 @@ public class GoogleMapsPlacesService {
                                             if (placeTypeRepository.findById(type).isPresent()) {
                                                 currentPlaceType = placeTypeRepository.findById(type).get();
                                             } else {
-                                                currentPlaceType = placeTypeRepository.save(PlaceType.builder().type(type).build());
+                                                currentPlaceType = placeTypeRepository.save(
+                                                        PlaceType.builder()
+                                                                .type(type)
+                                                                .build());
                                             }
                                             return currentPlaceType;
                                         }
