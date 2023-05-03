@@ -40,16 +40,17 @@ public class GoogleMapsPlacesService {
                 .radius(radius)
                 .await();
         saveResults(placesSearchResponse.results);
-        PlacesSearchResponse nextPageSearchResponse = getNextPageRequest(placesSearchResponse.nextPageToken);
-        while (nextPageSearchResponse.nextPageToken != null) {
+        String nextPageToken = placesSearchResponse.nextPageToken;
+        while (getNextPageRequest(nextPageToken) != null) {
+            PlacesSearchResponse nextPageSearchResponse = getNextPageRequest(nextPageToken).await();
             saveResults(nextPageSearchResponse.results);
-            nextPageSearchResponse = getNextPageRequest(nextPageSearchResponse.nextPageToken);
+            nextPageToken = nextPageSearchResponse.nextPageToken;
         }
     }
 
     // TODO InvalidRequestException without debugging
-    public PlacesSearchResponse getNextPageRequest(String token) throws IOException, InterruptedException, ApiException {
-        return token == null ? null : new NearbySearchRequest(context).pageToken(token).await();
+    public NearbySearchRequest getNextPageRequest(String token) {
+        return token == null ? null : new NearbySearchRequest(context).pageToken(token);
     }
 
     private void saveResults(PlacesSearchResult[] results) {
